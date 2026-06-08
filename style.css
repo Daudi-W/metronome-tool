@@ -36,6 +36,9 @@ button{cursor:pointer;font-family:inherit}
 .tap{background:#252b33;color:var(--txt);border:1px solid var(--line);border-radius:12px;
   padding:16px;font-size:16px;text-align:center;min-width:200px;flex:1}
 .tap small{color:var(--muted);font-weight:400;font-size:12px}
+.tapcol{flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px}
+.tapcol .tap{min-width:0}
+.tap.auto{border-color:var(--lime)}
 .tap.accent{border-color:var(--accent)}
 .tap.flash{background:var(--lime);color:#11150a}
 .tap.accent.flash{background:var(--accent);color:#1a0e04}

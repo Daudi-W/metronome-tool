@@ -124,8 +124,10 @@ function loop() {
 requestAnimationFrame(loop);
 
 // ---------- 載入檔案 ----------
+let lastFile = null;
 $('fileInput').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
+  lastFile = f;
   video.src = URL.createObjectURL(f);
   video.addEventListener('loadedmetadata', () => {
     overlay.width = video.videoWidth || 1280;
@@ -156,6 +158,57 @@ $('tapTempoBtn').addEventListener('click', () => {
     setBpm(60 / avg);
   }
 });
+
+// ---------- 自動偵測 BPM ----------
+$('autoBpmBtn').addEventListener('click', autoDetect);
+async function autoDetect() {
+  if (!lastFile) { alert('請先載入歌曲'); return; }
+  const status = $('detectStatus'); status.textContent = '分析中…';
+  try {
+    const buf = await lastFile.arrayBuffer();
+    const tmp = new (window.AudioContext || window.webkitAudioContext)();
+    const audio = await tmp.decodeAudioData(buf.slice(0)); tmp.close();
+    // 帶通濾波取低頻(大鼓)→ 離線渲染
+    const oac = new OfflineAudioContext(1, audio.length, audio.sampleRate);
+    const src = oac.createBufferSource(); src.buffer = audio;
+    const lp = oac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150;
+    const hp = oac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+    src.connect(lp).connect(hp).connect(oac.destination); src.start(0);
+    const data = (await oac.startRendering()).getChannelData(0);
+    const sr = audio.sampleRate;
+    const { bpm, firstPeak } = analyzeTempo(data, sr);
+    if (!bpm) { status.textContent = '偵測失敗,請改用敲拍'; return; }
+    setBpm(bpm);
+    // 第1拍猜測(最強週期峰值處)→ 仍請使用者確認
+    if (S.downbeat == null && firstPeak != null) { S.downbeat = firstPeak; updateDownbeatLabel(); resetScheduler(); }
+    status.textContent = `偵測:約 ${S.bpm} BPM(若太快/慢按 ÷2、×2;第1拍請播放後點「標記」確認)`;
+  } catch (err) { status.textContent = '無法解碼此檔的音訊:' + err.message; }
+}
+// 峰值間隔直方圖估 BPM(折疊到 70–180)
+function analyzeTempo(data, sr) {
+  const part = Math.floor(sr * 0.25), parts = Math.floor(data.length / part), peaks = [];
+  for (let i = 0; i < parts; i++) {
+    let max = 0, pos = 0;
+    for (let j = i * part; j < (i + 1) * part; j++) { const v = Math.abs(data[j]); if (v > max) { max = v; pos = j; } }
+    peaks.push({ pos, vol: max });
+  }
+  const byVol = peaks.slice().sort((a, b) => b.vol - a.vol);
+  const top = byVol.slice(0, Math.max(8, Math.floor(peaks.length * 0.4))).sort((a, b) => a.pos - b.pos);
+  const groups = [];
+  top.forEach((peak, idx) => {
+    for (let i = 1; i < 10 && idx + i < top.length; i++) {
+      let bpm = 60 / ((top[idx + i].pos - peak.pos) / sr);
+      if (!isFinite(bpm) || bpm <= 0) continue;
+      while (bpm < 70) bpm *= 2; while (bpm > 180) bpm /= 2;
+      const g = groups.find(g => Math.abs(g.bpm - bpm) < 0.6);
+      if (g) { g.count++; g.bpm = (g.bpm * (g.count - 1) + bpm) / g.count; } else groups.push({ bpm, count: 1 });
+    }
+  });
+  groups.sort((a, b) => b.count - a.count);
+  if (!groups.length) return { bpm: null };
+  const bpm = Math.round(groups[0].bpm * 100) / 100;
+  return { bpm, firstPeak: top.length ? top[0].pos / sr : null };
+}
 
 // ---------- 標記第1拍 ----------
 $('markDownbeatBtn').addEventListener('click', () => {

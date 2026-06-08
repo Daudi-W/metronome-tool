@@ -44,7 +44,11 @@
   <section class="card hidden" id="step-tempo">
     <h2>② 設定拍子</h2>
     <div class="row">
-      <button id="tapTempoBtn" class="tap">🥢 敲這裡抓 BPM<br><small>跟著歌點 4 下以上</small></button>
+      <div class="tapcol">
+        <button id="autoBpmBtn" class="tap auto">🔍 自動偵測 BPM<br><small>分析整首,免敲(第1拍仍需手動)</small></button>
+        <button id="tapTempoBtn" class="tap">🥢 或自己敲<br><small>跟著歌點 4 下以上</small></button>
+        <span id="detectStatus" class="time"></span>
+      </div>
       <div class="bpmbox">
         <label>BPM</label>
         <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
