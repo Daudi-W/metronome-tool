@@ -248,6 +248,119 @@ $('beatsPerBar').addEventListener('input', resetScheduler);
 
 function flash(id) { const el = $(id); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 90); }
 
+// ========== 直接輸出 MP4(ffmpeg.wasm,非錄製) ==========
+let ffmpegInst = null, ffUtil = null;
+async function getUtil() { if (!ffUtil) ffUtil = await import('./vendor/util/index.js'); return ffUtil; }
+async function loadFFmpeg(onLog) {
+  if (ffmpegInst) return ffmpegInst;
+  const { FFmpeg } = await import('./vendor/ffmpeg/index.js');   // 本地同源,Worker 不被擋
+  const abs = p => new URL(p, location.href).href;
+  const ff = new FFmpeg();
+  window.__ffLog = [];
+  ff.on('log', ({ message }) => { window.__ffLog.push(message); if (window.__ffLog.length > 60) window.__ffLog.shift(); });
+  ff.on('progress', ({ progress }) => onLog && onLog(progress));
+  await ff.load({
+    coreURL: abs('vendor/core/ffmpeg-core.js'),
+    wasmURL: abs('vendor/core/ffmpeg-core.wasm'),
+  });
+  ffmpegInst = ff; return ff;
+}
+
+// 合成 click 軌 → 16-bit PCM WAV (Uint8Array)
+function synthClickWav(dur, sr = 44100) {
+  const N = Math.ceil(dur * sr) + sr, buf = new Float32Array(N);
+  const p = period(), bpb = S.beatsPerBar, t0 = S.downbeat;
+  const add = (tc, accent) => {
+    if (tc < -0.001 || tc >= dur) return;
+    const f = accent ? 1600 : 1000, peak = accent ? 1.0 : 0.6, len = Math.floor(0.09 * sr), s = Math.floor(tc * sr);
+    for (let j = 0; j < len && s + j < N; j++) { const tt = j / sr, env = Math.exp(-tt * 38); buf[s + j] += Math.sin(2 * Math.PI * f * tt) * env * peak; }
+  };
+  if (S.clickOn) { let n = Math.floor((0 - t0) / p) - 1; for (; ;) { const tc = t0 + n * p; if (tc >= dur) break; add(tc, pmod(n, bpb) === 0 && S.accentSound); n++; } }
+  // WAV header + PCM
+  const bytes = N * 2, ab = new ArrayBuffer(44 + bytes), dv = new DataView(ab);
+  const wstr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  wstr(0, 'RIFF'); dv.setUint32(4, 36 + bytes, true); wstr(8, 'WAVE'); wstr(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  wstr(36, 'data'); dv.setUint32(40, bytes, true);
+  for (let i = 0; i < N; i++) { let v = Math.max(-1, Math.min(1, buf[i])); dv.setInt16(44 + i * 2, v * 32767, true); }
+  return new Uint8Array(ab);
+}
+
+// 產生圓點 PNG (Uint8Array) + 尺寸
+function makeDotPNG(r, fill, glow) {
+  const s = Math.ceil(2 * (r + glow) + 8), c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d'), m = s / 2;
+  if (glow > 0) { x.shadowColor = fill; x.shadowBlur = glow; }
+  x.fillStyle = fill; x.beginPath(); x.arc(m, m, r, 0, 7); x.fill();
+  return new Promise(res => c.toBlob(b => b.arrayBuffer().then(a => res({ data: new Uint8Array(a), size: s })), 'image/png'));
+}
+
+$('exportMp4Btn').addEventListener('click', exportMp4);
+async function exportMp4() {
+  if (S.downbeat == null) { alert('請先標記第1拍'); return; }
+  if (!lastFile) { alert('請先載入歌曲'); return; }
+  const btn = $('exportMp4Btn'), status = $('exportStatus'), prog = $('exportProgress'), bar = $('exportBar');
+  btn.disabled = true; prog.classList.remove('hidden'); bar.style.width = '0%';
+  try {
+    status.textContent = '載入 ffmpeg 引擎(首次約 30MB)…';
+    const ff = await loadFFmpeg(pr => { bar.style.width = Math.round(pr * 100) + '%'; status.textContent = '合成中… ' + Math.round(pr * 100) + '%'; });
+    const { fetchFile } = await getUtil();
+
+    // 輸出尺寸
+    const outH = parseInt($('exportQuality').value);
+    const H = Math.min(video.videoHeight, outH);
+    const W = Math.round(video.videoWidth * H / video.videoHeight / 2) * 2;
+    const dur = video.duration;
+
+    // 幾何
+    const n = S.beatsPerBar, r = S.dotSize / 720 * H;
+    const gap = Math.min(W / (n + 1), r * 4.2), x0 = W / 2 - gap * (n - 1) / 2, yc = H * S.dotY / 100;
+    const T0 = S.downbeat, QP = period(), BAR = period() * n;
+
+    // 素材
+    status.textContent = '準備素材…';
+    const dim = await makeDotPNG(r * 0.78, 'rgba(95,120,55,0.5)', 0);
+    const lit = await makeDotPNG(r, S.colNormal, r * 1.1);
+    const acc = await makeDotPNG(r * 1.18, S.colAccent, r * 1.1);
+    await ff.writeFile('in', await fetchFile(lastFile));
+    await ff.writeFile('click.wav', synthClickWav(dur));
+    await ff.writeFile('dim.png', dim.data);
+    await ff.writeFile('lit.png', lit.data);
+    await ff.writeFile('acc.png', acc.data);
+
+    // filter_complex
+    const px = i => Math.round(x0 + i * gap), pos = (cx, sz) => `${Math.round(cx - sz / 2)}:${Math.round(yc - sz / 2)}`;
+    let fc = `[0:v]scale=${W}:${H}[s]`;
+    let cur = 's';
+    for (let i = 0; i < n; i++) { const o = `d${i}`; fc += `;[${cur}][2:v]overlay=${pos(px(i), dim.size)}[${o}]`; cur = o; }
+    for (let i = 0; i < n; i++) {
+      const src = i === 0 ? '4:v' : '3:v', sz = i === 0 ? acc.size : lit.size, o = `b${i}`;
+      fc += `;[${cur}][${src}]overlay=${pos(px(i), sz)}:enable='gte(t\\,${T0})*eq(floor(mod(t-${T0}\\,${BAR})/${QP})\\,${i})'[${o}]`;
+      cur = o;
+    }
+    fc += `;[1:a]volume=${S.clickVol}[c];[0:a]volume=${S.songVol}[a0];[a0][c]amix=inputs=2:duration=first:normalize=0[a]`;
+
+    status.textContent = '開始合成(這步最久,請稍候)…';
+    await ff.exec([
+      '-i', 'in', '-i', 'click.wav', '-loop', '1', '-i', 'dim.png', '-loop', '1', '-i', 'lit.png', '-loop', '1', '-i', 'acc.png',
+      '-filter_complex', fc, '-map', `[${cur}]`, '-map', '[a]',
+      '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '24', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '192k', '-shortest', 'out.mp4'
+    ]);
+
+    const out = await ff.readFile('out.mp4');
+    if (!out || out.length === 0) throw new Error('影片解碼失敗,通常是 AV1 / HEVC 編碼(瀏覽器版只支援 H.264 影片)。請先把影片轉成 H.264,或改用下方「錄製備援」');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.buffer], { type: 'video/mp4' }));
+    a.download = '節拍器版.mp4'; a.click();
+    bar.style.width = '100%'; status.textContent = '完成!已下載 mp4 🎉';
+    try { await ff.deleteFile('in'); await ff.deleteFile('out.mp4'); } catch (e) { }
+  } catch (err) {
+    console.error(err); status.textContent = '失敗:' + (err && err.message || err) + '(檔案太大時可改 720p,或用下方錄製版)';
+  } finally { btn.disabled = false; }
+}
+
 // ---------- 匯出(即時錄製) ----------
 $('exportBtn').addEventListener('click', exportVideo);
 async function exportVideo() {

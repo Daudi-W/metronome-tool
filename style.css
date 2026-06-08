@@ -56,5 +56,10 @@ button{cursor:pointer;font-family:inherit}
 .grid2 input[type=range]{width:100%}
 .grid2 .chk{flex-direction:row;align-items:center;gap:8px;color:var(--txt);font-size:14px}
 hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+.chk2{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
+.prog{height:10px;background:#12151a;border-radius:6px;overflow:hidden;margin:12px 0}
+.prog #exportBar{height:100%;width:0;background:var(--lime);transition:width .2s}
+.alt{margin-top:16px;color:var(--muted);font-size:13px}
+.alt summary{cursor:pointer}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
 @media(max-width:560px){.grid2{grid-template-columns:1fr}}

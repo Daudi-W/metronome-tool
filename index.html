@@ -113,10 +113,25 @@
 
   <!-- 步驟4 匯出 -->
   <section class="card hidden" id="step-export">
-    <h2>④ 匯出影片(選配)</h2>
-    <p class="hint">會即時錄製整首(需播放一遍)。輸出為 .webm,可直接放投影/傳給人。</p>
-    <button id="exportBtn" class="big">⏺ 開始錄製匯出</button>
+    <h2>④ 匯出影片</h2>
+    <div class="row">
+      <div class="tapcol">
+        <button id="exportMp4Btn" class="big">⬇︎ 直接輸出 MP4(免錄製)</button>
+        <label class="chk2">畫質
+          <select id="exportQuality">
+            <option value="720" selected>720p(較快)</option>
+            <option value="1080">1080p(較慢)</option>
+          </select>
+        </label>
+        <p class="hint">在瀏覽器內用 ffmpeg 直接合成,不用播一遍。首次會載入約 30MB 引擎,3 分半的歌約需數分鐘。</p>
+      </div>
+    </div>
+    <div id="exportProgress" class="prog hidden"><div id="exportBar"></div></div>
     <span id="exportStatus" class="time"></span>
+    <details class="alt">
+      <summary>備援:快速錄製版(輸出 .webm,需播放一遍)</summary>
+      <button id="exportBtn" class="big" style="margin-top:8px">⏺ 開始錄製匯出</button>
+    </details>
   </section>
 </main>
 
