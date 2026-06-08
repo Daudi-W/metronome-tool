@@ -127,7 +127,7 @@ requestAnimationFrame(loop);
 let lastFile = null;
 $('fileInput').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
-  lastFile = f;
+  lastFile = f; _analysis = null;   // 換檔清掉分析快取
   video.src = URL.createObjectURL(f);
   video.addEventListener('loadedmetadata', () => {
     overlay.width = video.videoWidth || 1280;
@@ -159,29 +159,76 @@ $('tapTempoBtn').addEventListener('click', () => {
   }
 });
 
+// ---------- 音訊分析(解碼一次,給 BPM + 鼓點 onset) ----------
+let _analysis = null;
+async function analyzeAudio() {
+  if (_analysis) return _analysis;
+  const buf = await lastFile.arrayBuffer();
+  const tmp = new (window.AudioContext || window.webkitAudioContext)();
+  const audio = await tmp.decodeAudioData(buf.slice(0)); tmp.close();
+  const oac = new OfflineAudioContext(1, audio.length, audio.sampleRate);
+  const src = oac.createBufferSource(); src.buffer = audio;
+  const lp = oac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150;
+  const hp = oac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+  src.connect(lp).connect(hp).connect(oac.destination); src.start(0);
+  const data = (await oac.startRendering()).getChannelData(0);
+  const sr = audio.sampleRate;
+  const { bpm, firstPeak } = analyzeTempo(data, sr);
+  _analysis = { bpm, firstPeak, onsets: detectOnsets(data, sr), sr };
+  return _analysis;
+}
+// 細緻鼓點 onset(5ms 包絡 + 不應期)
+function detectOnsets(data, sr) {
+  const hop = Math.floor(sr * 0.005), env = [];
+  for (let i = 0; i < data.length; i += hop) { let m = 0; for (let j = i; j < i + hop && j < data.length; j++) { const a = Math.abs(data[j]); if (a > m) m = a; } env.push(m); }
+  let mx = 0; for (const v of env) if (v > mx) mx = v; const thr = mx * 0.25;
+  const on = []; let last = -1e9;
+  for (let i = 1; i < env.length - 1; i++) { const t = i * 0.005; if (env[i] > thr && env[i] >= env[i - 1] && env[i] > env[i + 1] && t - last > 0.12) { on.push(t); last = t; } }
+  return on;
+}
+// 全曲格線相位(onset 對 period 取圓平均,離群搶拍不影響多數)
+function gridPhase(p) {
+  if (!_analysis || !_analysis.onsets.length) return null;
+  let s = 0, c = 0; for (const t of _analysis.onsets) { const a = 2 * Math.PI * ((t % p) / p); s += Math.sin(a); c += Math.cos(a); }
+  let phi = Math.atan2(s, c) * p / (2 * Math.PI); if (phi < 0) phi += p; return phi;
+}
+// 把時間吸附到「全曲擬合的穩定格線」(相位由 tap 決定哪條線)
+function snapToGrid(t) {
+  const p = period(), phi = gridPhase(p);
+  if (phi == null) return null;
+  return phi + Math.round((t - phi) / p) * p;
+}
+// 估計固定格線到歌尾的累積漂移(秒)
+function driftEstimate() {
+  if (!_analysis || !_analysis.onsets.length) return 0;
+  const p = period(), phi = gridPhase(p), pts = [];
+  for (const t of _analysis.onsets) { let r = ((t - phi) % p + p) % p; if (r > p / 2) r -= p; if (Math.abs(r) < p * 0.25) pts.push([t, r]); }
+  if (pts.length < 8) return 0;
+  let n = pts.length, st = 0, sr = 0, stt = 0, srt = 0;
+  for (const [t, r] of pts) { st += t; sr += r; stt += t * t; srt += t * r; }
+  const b = (n * srt - st * sr) / (n * stt - st * st);
+  return Math.abs(b) * (video.duration || 0);
+}
+function showDrift() {
+  const el = $('driftStatus'); if (!el || !_analysis) return;
+  const d = driftEstimate();
+  el.textContent = d > 0.1
+    ? `⚠️ 這首速度會漂移,固定節拍器到歌尾約差 ${Math.round(d * 1000)}ms — 之後可用多錨點對齊`
+    : `✓ 速度穩定(預估整首漂移約 ${Math.round(d * 1000)}ms,固定節拍器對得住)`;
+}
+
 // ---------- 自動偵測 BPM ----------
 $('autoBpmBtn').addEventListener('click', autoDetect);
 async function autoDetect() {
   if (!lastFile) { alert('請先載入歌曲'); return; }
   const status = $('detectStatus'); status.textContent = '分析中…';
   try {
-    const buf = await lastFile.arrayBuffer();
-    const tmp = new (window.AudioContext || window.webkitAudioContext)();
-    const audio = await tmp.decodeAudioData(buf.slice(0)); tmp.close();
-    // 帶通濾波取低頻(大鼓)→ 離線渲染
-    const oac = new OfflineAudioContext(1, audio.length, audio.sampleRate);
-    const src = oac.createBufferSource(); src.buffer = audio;
-    const lp = oac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150;
-    const hp = oac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
-    src.connect(lp).connect(hp).connect(oac.destination); src.start(0);
-    const data = (await oac.startRendering()).getChannelData(0);
-    const sr = audio.sampleRate;
-    const { bpm, firstPeak } = analyzeTempo(data, sr);
-    if (!bpm) { status.textContent = '偵測失敗,請改用敲拍'; return; }
-    setBpm(bpm);
-    // 第1拍猜測(最強週期峰值處)→ 仍請使用者確認
-    if (S.downbeat == null && firstPeak != null) { S.downbeat = firstPeak; updateDownbeatLabel(); resetScheduler(); }
-    status.textContent = `偵測:約 ${S.bpm} BPM(若太快/慢按 ÷2、×2;第1拍請播放後點「標記」確認)`;
+    const a = await analyzeAudio();
+    if (!a.bpm) { status.textContent = '偵測失敗,請改用敲拍'; return; }
+    setBpm(a.bpm);
+    if (S.downbeat == null && a.firstPeak != null) { const s = snapToGrid(a.firstPeak); S.downbeat = s != null ? s : a.firstPeak; updateDownbeatLabel(); resetScheduler(); }
+    showDrift();
+    status.textContent = `偵測:約 ${S.bpm} BPM(太快/慢按 ÷2、×2);第1拍播放後點「標記」會自動吸附到拍`;
   } catch (err) { status.textContent = '無法解碼此檔的音訊:' + err.message; }
 }
 // 峰值間隔直方圖估 BPM(折疊到 70–180)
@@ -210,15 +257,24 @@ function analyzeTempo(data, sr) {
   return { bpm, firstPeak: top.length ? top[0].pos / sr : null };
 }
 
-// ---------- 標記第1拍 ----------
-$('markDownbeatBtn').addEventListener('click', () => {
+// ---------- 標記第1拍(自動吸附到拍) ----------
+$('markDownbeatBtn').addEventListener('click', async () => {
   flash('markDownbeatBtn');
-  S.downbeat = video.currentTime;
-  updateDownbeatLabel(); resetScheduler();
+  const t = video.currentTime;
+  if ($('snapBeat').checked && lastFile) {
+    try { await analyzeAudio(); const s = snapToGrid(t); if (s != null) { S.downbeat = s; updateDownbeatLabel(Math.round((s - t) * 1000)); resetScheduler(); showDrift(); return; } } catch (e) { }
+  }
+  S.downbeat = t; updateDownbeatLabel(); resetScheduler();
 });
-function updateDownbeatLabel() {
-  $('downbeatLabel').textContent = S.downbeat == null ? '第1拍：未設定'
-    : '第1拍：' + S.downbeat.toFixed(3) + 's';
+$('snapNowBtn').addEventListener('click', async () => {
+  if (S.downbeat == null) { alert('請先標記第1拍'); return; }
+  if (!lastFile) return;
+  try { await analyzeAudio(); const s = snapToGrid(S.downbeat); if (s != null) { const corr = Math.round((s - S.downbeat) * 1000); S.downbeat = s; updateDownbeatLabel(corr); resetScheduler(); showDrift(); } } catch (e) { }
+});
+function updateDownbeatLabel(corr) {
+  let s = S.downbeat == null ? '第1拍：未設定' : '第1拍：' + S.downbeat.toFixed(3) + 's';
+  if (corr != null && S.downbeat != null) s += `(已吸附,修正 ${corr >= 0 ? '+' : ''}${corr}ms)`;
+  $('downbeatLabel').textContent = s;
 }
 
 // ---------- BPM 控制 ----------

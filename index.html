@@ -72,9 +72,12 @@
           <button data-nudge="+0.01">+10ms</button>
           <button data-nudge="+0.05">+50ms</button>
         </div>
+        <label class="chk2" style="margin-top:8px"><input type="checkbox" id="snapBeat" checked> 標記時自動吸附到最近的拍(免手點誤差)</label>
+        <button id="snapNowBtn" class="bpm-fine" style="margin-top:6px">🧲 對齊到最近拍</button>
         <span id="downbeatLabel" class="time">第1拍：未設定</span>
       </div>
     </div>
+    <div id="driftStatus" class="time" style="display:block;margin-top:4px"></div>
   </section>
 
   <!-- 步驟3 外觀/聲音 -->
