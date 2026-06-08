@@ -205,9 +205,7 @@ function refineBpm(rough) {
       if (R > bestR) { bestR = R; best = b; }
     }
   }
-  const intB = Math.round(best);
-  // 非整數明顯更鎖相(現場/非 click 錄音)才保留一位小數
-  return lockScore(60 / best) > lockScore(60 / intB) * 1.03 ? Math.round(best * 10) / 10 : intB;
+  return Math.round(best);   // 一律取整數(錄音室假設);不穩的歌由漂移警示把關,使用者可 ÷2/×2 或手動調
 }
 // 全曲格線相位(onset 對 period 取圓平均,離群搶拍不影響多數)
 function gridPhase(p) {
