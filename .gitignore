@@ -1,0 +1,6 @@
+.DS_Store
+# 本機測試影片(勿commit大檔)
+_test.mp4
+*.webm
+*.mp4
+.gitignore_test_marker

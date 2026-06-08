@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>節拍器疊片工具 · Metronome Overlay</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🥁 節拍器疊片工具</h1>
+  <p class="sub">上傳影片/音樂 → 跟著敲拍 → 即時疊上節拍點和聲音 → 可匯出</p>
+</header>
+
+<main>
+  <!-- 步驟1 上傳 -->
+  <section class="card" id="step-load">
+    <h2>① 載入歌曲</h2>
+    <input type="file" id="fileInput" accept="video/*,audio/*">
+    <p class="hint">拖一個 mp4 / mp3 / m4a 進來。檔案只在你的瀏覽器處理,不會上傳。</p>
+  </section>
+
+  <!-- 播放區 -->
+  <section class="card hidden" id="stage">
+    <div class="player">
+      <video id="video" playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="transport">
+      <button id="playBtn" class="big">▶︎ 播放</button>
+      <span id="timeLabel" class="time">0:00 / 0:00</span>
+      <label class="rate">速度
+        <select id="rate">
+          <option value="0.5">0.5×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>1×</option>
+        </select>
+      </label>
+    </div>
+    <div id="beatReadout" class="beat-readout">拍：— / 小節：—</div>
+  </section>
+
+  <!-- 步驟2 設定拍子 -->
+  <section class="card hidden" id="step-tempo">
+    <h2>② 設定拍子</h2>
+    <div class="row">
+      <button id="tapTempoBtn" class="tap">🥢 敲這裡抓 BPM<br><small>跟著歌點 4 下以上</small></button>
+      <div class="bpmbox">
+        <label>BPM</label>
+        <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
+        <div class="bpm-fine">
+          <button data-bpm="-1">−1</button>
+          <button data-bpm="-0.1">−0.1</button>
+          <button data-bpm="+0.1">+0.1</button>
+          <button data-bpm="+1">+1</button>
+          <button id="halveBpm">÷2</button>
+          <button id="doubleBpm">×2</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="markDownbeatBtn" class="tap accent">🎯 標記「第1拍」<br><small>播放中,在你數「1」的瞬間點一下</small></button>
+      <div class="fine">
+        <label>微調第1拍位置</label>
+        <div class="bpm-fine">
+          <button data-nudge="-0.05">−50ms</button>
+          <button data-nudge="-0.01">−10ms</button>
+          <button data-nudge="+0.01">+10ms</button>
+          <button data-nudge="+0.05">+50ms</button>
+        </div>
+        <span id="downbeatLabel" class="time">第1拍：未設定</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 步驟3 外觀/聲音 -->
+  <section class="card hidden" id="step-style">
+    <h2>③ 外觀與聲音</h2>
+    <div class="grid2">
+      <label>每小節幾拍
+        <input type="number" id="beatsPerBar" min="1" max="12" value="4">
+      </label>
+      <label>節拍點大小
+        <input type="range" id="dotSize" min="10" max="60" value="34">
+      </label>
+      <label>點的位置(由上往下)
+        <input type="range" id="dotY" min="0" max="100" value="85">
+      </label>
+      <label>一般拍顏色
+        <input type="color" id="colNormal" value="#a8e84f">
+      </label>
+      <label>第1拍(重拍)顏色
+        <input type="color" id="colAccent" value="#ffffff">
+      </label>
+      <label class="chk"><input type="checkbox" id="showDim" checked> 顯示未亮的拍點</label>
+    </div>
+    <hr>
+    <div class="grid2">
+      <label>節拍器音量
+        <input type="range" id="clickVol" min="0" max="100" value="70">
+      </label>
+      <label>原曲音量
+        <input type="range" id="songVol" min="0" max="100" value="100">
+      </label>
+      <label class="chk"><input type="checkbox" id="accentSound" checked> 第1拍用不同聲音(重音)</label>
+      <label class="chk"><input type="checkbox" id="clickOn" checked> 開節拍器聲音</label>
+    </div>
+  </section>
+
+  <!-- 步驟4 匯出 -->
+  <section class="card hidden" id="step-export">
+    <h2>④ 匯出影片(選配)</h2>
+    <p class="hint">會即時錄製整首(需播放一遍)。輸出為 .webm,可直接放投影/傳給人。</p>
+    <button id="exportBtn" class="big">⏺ 開始錄製匯出</button>
+    <span id="exportStatus" class="time"></span>
+  </section>
+</main>
+
+<footer>桃園 · 敬拜團工具 · 全在瀏覽器執行,無伺服器</footer>
+<script src="app.js"></script>
+</body>
+</html>

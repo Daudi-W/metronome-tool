@@ -1,0 +1,57 @@
+:root{
+  --bg:#15171a; --card:#1f2329; --line:#2c313a; --txt:#e8ecf1;
+  --muted:#9aa4b2; --lime:#a8e84f; --accent:#ff8a3d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,"PingFang TC","Helvetica Neue",sans-serif;line-height:1.5}
+header{padding:22px 20px 6px;text-align:center}
+header h1{margin:0;font-size:24px}
+header .sub{margin:6px 0 0;color:var(--muted);font-size:14px}
+main{max-width:860px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:18px;margin:14px 0}
+.card h2{margin:0 0 12px;font-size:17px}
+.hidden{display:none}
+.hint{color:var(--muted);font-size:13px;margin:8px 0 0}
+input[type=file]{color:var(--txt)}
+
+/* 播放區 */
+.player{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;
+  display:flex;justify-content:center;min-height:120px}
+#video{max-width:100%;max-height:60vh;display:block}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.transport{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
+.time{color:var(--muted);font-variant-numeric:tabular-nums}
+.rate{margin-left:auto;color:var(--muted);font-size:14px}
+select,input[type=number]{background:#12151a;color:var(--txt);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;font-size:15px}
+.beat-readout{margin-top:10px;font-size:15px;color:var(--lime);font-variant-numeric:tabular-nums}
+
+/* 按鈕 */
+button{cursor:pointer;font-family:inherit}
+.big{background:var(--lime);color:#11150a;border:none;border-radius:10px;
+  padding:12px 20px;font-size:16px;font-weight:700}
+.big:active{transform:translateY(1px)}
+.tap{background:#252b33;color:var(--txt);border:1px solid var(--line);border-radius:12px;
+  padding:16px;font-size:16px;text-align:center;min-width:200px;flex:1}
+.tap small{color:var(--muted);font-weight:400;font-size:12px}
+.tap.accent{border-color:var(--accent)}
+.tap.flash{background:var(--lime);color:#11150a}
+.tap.accent.flash{background:var(--accent);color:#1a0e04}
+
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;margin-bottom:14px}
+.bpmbox,.fine{flex:1;min-width:220px;background:#1a1e24;border-radius:10px;padding:12px}
+.bpmbox label,.fine label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+.bpmbox input[type=number]{font-size:26px;width:120px;text-align:center}
+.bpm-fine{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.bpm-fine button{background:#262c34;color:var(--txt);border:1px solid var(--line);
+  border-radius:8px;padding:6px 10px;font-size:13px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid2 label{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:13px}
+.grid2 input[type=range]{width:100%}
+.grid2 .chk{flex-direction:row;align-items:center;gap:8px;color:var(--txt);font-size:14px}
+hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
