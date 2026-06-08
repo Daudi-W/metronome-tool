@@ -119,11 +119,15 @@
         <button id="exportMp4Btn" class="big">⬇︎ 直接輸出 MP4(免錄製)</button>
         <label class="chk2">畫質
           <select id="exportQuality">
-            <option value="720" selected>720p(較快)</option>
-            <option value="1080">1080p(較慢)</option>
+            <option value="360">360p(最快)</option>
+            <option value="480">480p(快)</option>
+            <option value="720" selected>720p</option>
+            <option value="1080">1080p(最慢)</option>
           </select>
         </label>
-        <p class="hint">在瀏覽器內用 ffmpeg 直接合成,不用播一遍。首次會載入約 30MB 引擎,3 分半的歌約需數分鐘。</p>
+        <p class="hint">在瀏覽器內用 ffmpeg 直接合成,不用播一遍。首次會載入約 30MB 引擎。畫質越低越快。</p>
+        <button id="exportMp3Btn" class="big" style="background:#6fb3ff">🎵 只下載聲音(MP3)</button>
+        <p class="hint">只混「原曲+節拍器」成 MP3,最快,且任何影片編碼都能用(含 AV1)。</p>
       </div>
     </div>
     <div id="exportProgress" class="prog hidden"><div id="exportBar"></div></div>

@@ -334,9 +334,11 @@ async function exportMp4() {
     let fc = `[0:v]scale=${W}:${H}[s]`;
     let cur = 's';
     for (let i = 0; i < n; i++) { const o = `d${i}`; fc += `;[${cur}][2:v]overlay=${pos(px(i), dim.size)}[${o}]`; cur = o; }
+    // 大偏移(BAR 的整數倍)讓 mod 在 t<第1拍 時仍為正,使節拍閃爍「整首」都有,不只從標記點開始
+    const OFF = BAR * 100000;
     for (let i = 0; i < n; i++) {
       const src = i === 0 ? '4:v' : '3:v', sz = i === 0 ? acc.size : lit.size, o = `b${i}`;
-      fc += `;[${cur}][${src}]overlay=${pos(px(i), sz)}:enable='gte(t\\,${T0})*eq(floor(mod(t-${T0}\\,${BAR})/${QP})\\,${i})'[${o}]`;
+      fc += `;[${cur}][${src}]overlay=${pos(px(i), sz)}:enable='eq(floor(mod(t-${T0}+${OFF}\\,${BAR})/${QP})\\,${i})'[${o}]`;
       cur = o;
     }
     fc += `;[1:a]volume=${S.clickVol}[c];[0:a]volume=${S.songVol}[a0];[a0][c]amix=inputs=2:duration=first:normalize=0[a]`;
@@ -359,6 +361,40 @@ async function exportMp4() {
   } catch (err) {
     console.error(err); status.textContent = '失敗:' + (err && err.message || err) + '(檔案太大時可改 720p,或用下方錄製版)';
   } finally { btn.disabled = false; }
+}
+
+// ---------- 只下載聲音 MP3 ----------
+function downloadBlob(u8, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([u8.buffer], { type })); a.download = name; a.click();
+}
+$('exportMp3Btn').addEventListener('click', exportAudio);
+async function exportAudio() {
+  if (S.downbeat == null) { alert('請先標記第1拍'); return; }
+  if (!lastFile) { alert('請先載入歌曲'); return; }
+  const btn = $('exportMp3Btn'), status = $('exportStatus'), prog = $('exportProgress'), bar = $('exportBar');
+  btn.disabled = true; prog.classList.remove('hidden'); bar.style.width = '0%';
+  try {
+    status.textContent = '載入 ffmpeg 引擎…';
+    const ff = await loadFFmpeg(pr => { bar.style.width = Math.round(pr * 100) + '%'; status.textContent = '合成中… ' + Math.round(pr * 100) + '%'; });
+    const { fetchFile } = await getUtil();
+    const dur = video.duration;
+    await ff.writeFile('in', await fetchFile(lastFile));
+    await ff.writeFile('click.wav', synthClickWav(dur));
+    const fc = `[1:a]volume=${S.clickVol}[c];[0:a]volume=${S.songVol}[a0];[a0][c]amix=inputs=2:duration=first:normalize=0[a]`;
+    status.textContent = '合成聲音中…';
+    await ff.exec(['-i', 'in', '-i', 'click.wav', '-filter_complex', fc, '-map', '[a]', '-vn', '-c:a', 'libmp3lame', '-q:a', '2', '-t', String(dur), 'out.mp3']);
+    let out = await ff.readFile('out.mp3');
+    if (out && out.length) { downloadBlob(out, '節拍器版.mp3', 'audio/mpeg'); status.textContent = '完成!已下載 MP3 🎉'; }
+    else { // 後援:此 core 無 libmp3lame → 輸出 m4a(aac)
+      await ff.exec(['-i', 'in', '-i', 'click.wav', '-filter_complex', fc, '-map', '[a]', '-vn', '-c:a', 'aac', '-b:a', '192k', '-t', String(dur), 'out.m4a']);
+      out = await ff.readFile('out.m4a');
+      if (!out || !out.length) throw new Error('音訊合成失敗');
+      downloadBlob(out, '節拍器版.m4a', 'audio/mp4'); status.textContent = '完成!已下載 m4a(同等音質)🎉';
+    }
+    bar.style.width = '100%';
+  } catch (err) { console.error(err); status.textContent = '失敗:' + (err && err.message || err); }
+  finally { btn.disabled = false; }
 }
 
 // ---------- 匯出(即時錄製) ----------
