@@ -186,6 +186,29 @@ function detectOnsets(data, sr) {
   for (let i = 1; i < env.length - 1; i++) { const t = i * 0.005; if (env[i] > thr && env[i] >= env[i - 1] && env[i] > env[i + 1] && t - last > 0.12) { on.push(t); last = t; } }
   return on;
 }
+// onset 對某 period 的「鎖相度」R(0~1,越高代表這速度越貼合全曲)
+function lockScore(p) {
+  if (!_analysis || !_analysis.onsets.length) return 0;
+  let s = 0, c = 0, n = _analysis.onsets.length;
+  for (const t of _analysis.onsets) { const a = 2 * Math.PI * (t / p); s += Math.sin(a); c += Math.cos(a); }
+  return Math.sqrt(s * s + c * c) / n;
+}
+// 精修 BPM:在偵測值的 1×/2×/½× 三個窄帶各找 lockScore 峰,取最高,四捨五入整數
+// (錄音室通常整數;鎖相峰會落在精確整數如 152.00 → 消除估計誤差造成的假漂移)
+function refineBpm(rough) {
+  const centers = [rough, rough * 2, rough / 2].filter(b => b >= 50 && b <= 210);
+  let best = rough, bestR = -1;
+  for (const center of centers) {
+    for (let b = center - 1.5; b <= center + 1.5; b += 0.05) {
+      if (b < 40 || b > 300) continue;
+      const R = lockScore(60 / b);
+      if (R > bestR) { bestR = R; best = b; }
+    }
+  }
+  const intB = Math.round(best);
+  // 非整數明顯更鎖相(現場/非 click 錄音)才保留一位小數
+  return lockScore(60 / best) > lockScore(60 / intB) * 1.03 ? Math.round(best * 10) / 10 : intB;
+}
 // 全曲格線相位(onset 對 period 取圓平均,離群搶拍不影響多數)
 function gridPhase(p) {
   if (!_analysis || !_analysis.onsets.length) return null;
@@ -225,10 +248,10 @@ async function autoDetect() {
   try {
     const a = await analyzeAudio();
     if (!a.bpm) { status.textContent = '偵測失敗,請改用敲拍'; return; }
-    setBpm(a.bpm);
+    setBpm(refineBpm(a.bpm));   // 精修到最鎖相的整數(錄音室通常整數)
     if (S.downbeat == null && a.firstPeak != null) { const s = snapToGrid(a.firstPeak); S.downbeat = s != null ? s : a.firstPeak; updateDownbeatLabel(); resetScheduler(); }
     showDrift();
-    status.textContent = `偵測:約 ${S.bpm} BPM(太快/慢按 ÷2、×2);第1拍播放後點「標記」會自動吸附到拍`;
+    status.textContent = `偵測:${S.bpm} BPM(已取整數;太快/慢按 ÷2、×2,非整數可手動微調);第1拍播放後點「標記」自動吸附`;
   } catch (err) { status.textContent = '無法解碼此檔的音訊:' + err.message; }
 }
 // 峰值間隔直方圖估 BPM(折疊到 70–180)
