@@ -125,6 +125,17 @@ requestAnimationFrame(loop);
 
 // ---------- 載入檔案 ----------
 let lastFile = null;
+// 拖放支援
+const dz = $('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  const dt = new DataTransfer(); dt.items.add(f);
+  $('fileInput').files = dt.files;
+  $('fileInput').dispatchEvent(new Event('change'));
+});
 $('fileInput').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   lastFile = f; _analysis = null;   // 換檔清掉分析快取
@@ -132,7 +143,7 @@ $('fileInput').addEventListener('change', e => {
   video.addEventListener('loadedmetadata', () => {
     overlay.width = video.videoWidth || 1280;
     overlay.height = video.videoHeight || 720;
-    ['stage', 'step-tempo', 'step-style', 'step-export'].forEach(id => $(id).classList.remove('hidden'));
+    ['stage', 'step-tempo', 'step-export'].forEach(id => $(id).classList.remove('hidden'));
   }, { once: true });
 });
 
@@ -144,7 +155,6 @@ $('playBtn').addEventListener('click', async () => {
 video.addEventListener('play', () => { $('playBtn').textContent = '⏸ 暫停'; startScheduler(); });
 video.addEventListener('pause', () => { $('playBtn').textContent = '▶︎ 播放'; stopScheduler(); });
 video.addEventListener('seeked', () => { if (!video.paused) startScheduler(); });
-$('rate').addEventListener('change', e => { video.playbackRate = parseFloat(e.target.value); if (!video.paused) startScheduler(); });
 
 // ---------- 敲拍抓 BPM ----------
 let taps = [];

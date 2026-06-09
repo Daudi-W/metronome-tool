@@ -8,7 +8,35 @@ body{margin:0;background:var(--bg);color:var(--txt);
 header{padding:22px 20px 6px;text-align:center}
 header h1{margin:0;font-size:24px}
 header .sub{margin:6px 0 0;color:var(--muted);font-size:14px}
-main{max-width:860px;margin:0 auto;padding:16px}
+main{max-width:1040px;margin:0 auto;padding:16px}
+.card h3{margin:0 0 12px;font-size:16px;color:var(--txt)}
+
+/* ① 大拖放區 */
+.dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  border:2px dashed #3a4250;border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;
+  background:#1a1e24;transition:.15s}
+.dropzone:hover{border-color:var(--lime);background:#1d2530}
+.dropzone.drag{border-color:var(--lime);background:#22301d;transform:scale(1.01)}
+.dz-icon{font-size:44px;line-height:1}
+.dz-title{font-size:19px;font-weight:700}
+.dz-sub{color:var(--muted);font-size:13px}
+
+/* 工作區:影片 + 外觀(雙欄,窄螢幕堆疊) */
+.work{display:flex;gap:18px;flex-wrap:wrap}
+.work-video{flex:1 1 380px;min-width:300px}
+.work-style{flex:1 1 320px;min-width:280px;background:#1a1e24;border-radius:12px;padding:16px}
+
+/* 大開關 */
+.toggles{display:flex;gap:10px;margin-bottom:14px}
+.toggle{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+  background:#262c34;border:2px solid var(--line);border-radius:12px;padding:16px 10px;
+  font-size:16px;font-weight:700;color:var(--muted);user-select:none;transition:.12s}
+.toggle input{display:none}
+.toggle:has(input:checked){background:#22301d;border-color:var(--lime);color:var(--txt)}
+.toggle:active{transform:translateY(1px)}
+.sliders{display:flex;flex-direction:column;gap:10px}
+.sliders label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:13px}
+.sliders input[type=range]{width:100%}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:18px;margin:14px 0}
 .card h2{margin:0 0 12px;font-size:17px}
@@ -27,6 +55,7 @@ input[type=file]{color:var(--txt)}
 select,input[type=number]{background:#12151a;color:var(--txt);border:1px solid var(--line);
   border-radius:8px;padding:6px 8px;font-size:15px}
 .beat-readout{margin-top:10px;font-size:15px;color:var(--lime);font-variant-numeric:tabular-nums}
+#video{max-height:52vh}
 
 /* 按鈕 */
 button{cursor:pointer;font-family:inherit}
