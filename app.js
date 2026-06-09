@@ -10,7 +10,7 @@ const S = {
   downbeat: null,      // 第1拍在影片時間軸的秒數(任一個「1」)
   beatsPerBar: 4,
   dotSize: 34, dotY: 85,
-  colNormal: '#a8e84f', colAccent: '#ffffff',
+  colNormal: '#a8e84f', colAccent: '#ffffff', colDim: '#5f7837',
   showDim: true,
   clickOn: true, accentSound: true,
   clickVol: 0.7, songVol: 1.0,
@@ -84,24 +84,22 @@ function drawDots(ctx, W, H, lit) {
   const totalW = gap * (n - 1);
   const x0 = W / 2 - totalW / 2;
   const y = H * S.dotY / 100;
+  const ow = Math.max(1.5, r * 0.14);   // 深色描邊寬度(襯任何背景)
   for (let i = 0; i < n; i++) {
     const x = x0 + i * gap;
     const isLit = i === lit;
     const isAccent = i === 0;
-    if (!isLit) {
-      if (!S.showDim) continue;
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#5f7837';
-      circle(ctx, x, y, r * 0.78);
-      ctx.globalAlpha = 1;
-    } else {
-      const col = isAccent ? S.colAccent : S.colNormal;
-      ctx.save();
-      ctx.shadowColor = col; ctx.shadowBlur = r * 1.1;
-      ctx.fillStyle = col;
-      circle(ctx, x, y, r * (isAccent ? 1.18 : 1));
-      ctx.restore();
-    }
+    if (!isLit && !S.showDim) continue;
+    const rr = isLit ? r * (isAccent ? 1.18 : 1) : r * 0.78;
+    const col = !isLit ? S.colDim : (isAccent ? S.colAccent : S.colNormal);
+    // 深色描邊
+    ctx.globalAlpha = isLit ? 0.9 : 0.5;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    circle(ctx, x, y, rr + ow);
+    // 顏色填充(亮的加光暈)
+    ctx.globalAlpha = isLit ? 1 : 0.72;
+    if (isLit) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = r * 0.9; ctx.fillStyle = col; circle(ctx, x, y, rr); ctx.restore(); }
+    else { ctx.fillStyle = col; circle(ctx, x, y, rr); }
   }
   ctx.globalAlpha = 1;
 }
@@ -113,11 +111,6 @@ function loop() {
   if (video.readyState >= 2) {
     drawDots(octx, overlay.width, overlay.height, litIndex(video.currentTime));
     $('timeLabel').textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
-    const li = litIndex(video.currentTime);
-    if (li >= 0) {
-      const bar = Math.floor((video.currentTime - S.downbeat) / period() / S.beatsPerBar);
-      $('beatReadout').textContent = `拍：${li + 1} / ${S.beatsPerBar}　小節：${bar + 1}`;
-    }
   }
   requestAnimationFrame(loop);
 }
@@ -143,7 +136,7 @@ $('fileInput').addEventListener('change', e => {
   video.addEventListener('loadedmetadata', () => {
     overlay.width = video.videoWidth || 1280;
     overlay.height = video.videoHeight || 720;
-    ['stage', 'step-tempo', 'step-export'].forEach(id => $(id).classList.remove('hidden'));
+    ['stage', 'step-export'].forEach(id => $(id).classList.remove('hidden'));
   }, { once: true });
 });
 
@@ -327,7 +320,7 @@ const bind = (id, key, fn = v => v) => $(id).addEventListener('input', e =>
 bind('beatsPerBar', 'beatsPerBar', v => Math.max(1, parseInt(v) || 4));
 bind('dotSize', 'dotSize', v => +v);
 bind('dotY', 'dotY', v => +v);
-bind('colNormal', 'colNormal'); bind('colAccent', 'colAccent');
+bind('colNormal', 'colNormal'); bind('colAccent', 'colAccent'); bind('colDim', 'colDim');
 bind('showDim', 'showDim'); bind('accentSound', 'accentSound'); bind('clickOn', 'clickOn');
 $('clickVol').addEventListener('input', e => { S.clickVol = e.target.value / 100; if (clickGain) clickGain.gain.value = S.clickVol; });
 $('songVol').addEventListener('input', e => { S.songVol = e.target.value / 100; if (songGain) songGain.gain.value = S.songVol; });
@@ -376,8 +369,10 @@ function synthClickWav(dur, sr = 44100) {
 
 // 產生圓點 PNG (Uint8Array) + 尺寸
 function makeDotPNG(r, fill, glow) {
-  const s = Math.ceil(2 * (r + glow) + 8), c = document.createElement('canvas'); c.width = c.height = s;
+  const ow = Math.max(2, r * 0.14);
+  const s = Math.ceil(2 * (r + glow + ow) + 8), c = document.createElement('canvas'); c.width = c.height = s;
   const x = c.getContext('2d'), m = s / 2;
+  x.fillStyle = 'rgba(0,0,0,0.85)'; x.beginPath(); x.arc(m, m, r + ow, 0, 7); x.fill();   // 深色描邊
   if (glow > 0) { x.shadowColor = fill; x.shadowBlur = glow; }
   x.fillStyle = fill; x.beginPath(); x.arc(m, m, r, 0, 7); x.fill();
   return new Promise(res => c.toBlob(b => b.arrayBuffer().then(a => res({ data: new Uint8Array(a), size: s })), 'image/png'));
@@ -407,7 +402,7 @@ async function exportMp4() {
 
     // 素材
     status.textContent = '準備素材…';
-    const dim = await makeDotPNG(r * 0.78, 'rgba(95,120,55,0.5)', 0);
+    const dim = await makeDotPNG(r * 0.78, S.colDim, 0);
     const lit = await makeDotPNG(r, S.colNormal, r * 1.1);
     const acc = await makeDotPNG(r * 1.18, S.colAccent, r * 1.1);
     await ff.writeFile('in', await fetchFile(lastFile));

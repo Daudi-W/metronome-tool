@@ -21,10 +21,11 @@ main{max-width:1040px;margin:0 auto;padding:16px}
 .dz-title{font-size:19px;font-weight:700}
 .dz-sub{color:var(--muted);font-size:13px}
 
-/* 工作區:影片 + 外觀(雙欄,窄螢幕堆疊) */
-.work{display:flex;gap:18px;flex-wrap:wrap}
-.work-video{flex:1 1 380px;min-width:300px}
-.work-style{flex:1 1 320px;min-width:280px;background:#1a1e24;border-radius:12px;padding:16px}
+/* 工作區:影片 + 控制(雙欄,窄螢幕堆疊) */
+.work{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.work-video{flex:1 1 420px;min-width:300px;position:sticky;top:12px}
+.work-ctrl{flex:1 1 380px;min-width:300px;display:flex;flex-direction:column;gap:14px}
+.panel{background:#1a1e24;border-radius:12px;padding:16px}
 
 /* 大開關 */
 .toggles{display:flex;gap:10px;margin-bottom:14px}
