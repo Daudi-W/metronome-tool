@@ -23,10 +23,10 @@
     <input type="file" id="fileInput" accept="video/*,audio/*" hidden>
   </section>
 
-  <!-- 工作區:左欄(影片+外觀) 並排 右欄(設定拍子) -->
+  <!-- 工作區:上排 影片 + 設定拍子;下方 外觀與聲音橫跨整列 -->
   <section class="card hidden" id="stage">
     <div class="work">
-      <!-- 左欄:影片 + 外觀與聲音 -->
+      <!-- 左:影片 -->
       <div class="work-left">
         <div class="player">
           <video id="video" playsinline></video>
@@ -36,30 +36,9 @@
           <button id="playBtn" class="big">▶︎ 播放</button>
           <span id="timeLabel" class="time">0:00 / 0:00</span>
         </div>
-        <div class="panel">
-          <h3>外觀與聲音</h3>
-          <div class="toggles">
-            <label class="toggle"><input type="checkbox" id="clickOn" checked><span>🥁 節拍器聲音</span></label>
-            <label class="toggle"><input type="checkbox" id="accentSound" checked><span>🔊 第1拍重音</span></label>
-          </div>
-          <div class="sliders">
-            <label>節拍器音量 <input type="range" id="clickVol" min="0" max="100" value="70"></label>
-            <label>原曲音量 <input type="range" id="songVol" min="0" max="100" value="100"></label>
-          </div>
-          <hr>
-          <div class="grid2">
-            <label>每小節幾拍 <input type="number" id="beatsPerBar" min="1" max="12" value="4"></label>
-            <label>節拍點大小 <input type="range" id="dotSize" min="10" max="60" value="34"></label>
-            <label>點的位置(上下) <input type="range" id="dotY" min="0" max="100" value="85"></label>
-            <label class="chk"><input type="checkbox" id="showDim" checked> 顯示未亮的拍點</label>
-            <label>第1拍顏色 <input type="color" id="colAccent" value="#ffffff"></label>
-            <label>一般拍顏色 <input type="color" id="colNormal" value="#a8e84f"></label>
-            <label>未亮拍顏色 <input type="color" id="colDim" value="#5f7837"></label>
-          </div>
-        </div>
       </div>
 
-      <!-- 右欄:設定拍子(精簡) -->
+      <!-- 右:設定拍子(精簡) -->
       <div class="work-right">
         <div class="panel">
           <h3>設定拍子</h3>
@@ -70,14 +49,16 @@
           <span id="detectStatus" class="time"></span>
           <div class="bpmbox">
             <label>BPM</label>
-            <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
-            <div class="bpm-fine">
-              <button data-bpm="-1">−1</button>
-              <button data-bpm="-0.1">−0.1</button>
-              <button data-bpm="+0.1">+0.1</button>
-              <button data-bpm="+1">+1</button>
-              <button id="halveBpm">÷2</button>
-              <button id="doubleBpm">×2</button>
+            <div class="bpm-row">
+              <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
+              <div class="bpm-fine">
+                <button data-bpm="-1">−1</button>
+                <button data-bpm="-0.1">−0.1</button>
+                <button data-bpm="+0.1">+0.1</button>
+                <button data-bpm="+1">+1</button>
+                <button id="halveBpm">÷2</button>
+                <button id="doubleBpm">×2</button>
+              </div>
             </div>
           </div>
           <button id="markDownbeatBtn" class="tap-sm accent" style="width:100%">🎯 標記「第1拍」<br><small>播放中,在你數「1」的瞬間點一下</small></button>
@@ -94,6 +75,34 @@
             <span id="downbeatLabel" class="time">第1拍：未設定</span>
           </div>
           <div id="driftStatus" class="time" style="display:block;margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 外觀與聲音:橫跨整列 -->
+    <div class="panel" style="margin-top:14px">
+      <h3>外觀與聲音</h3>
+      <div class="style-cols">
+        <div class="style-col">
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" id="clickOn" checked><span>🥁 節拍器聲音</span></label>
+            <label class="toggle"><input type="checkbox" id="accentSound" checked><span>🔊 第1拍重音</span></label>
+          </div>
+          <div class="sliders">
+            <label>節拍器音量 <input type="range" id="clickVol" min="0" max="100" value="70"></label>
+            <label>原曲音量 <input type="range" id="songVol" min="0" max="100" value="100"></label>
+          </div>
+        </div>
+        <div class="style-col">
+          <div class="grid2">
+            <label>每小節幾拍 <input type="number" id="beatsPerBar" min="1" max="12" value="4"></label>
+            <label>節拍點大小 <input type="range" id="dotSize" min="10" max="60" value="34"></label>
+            <label>點的位置(上下) <input type="range" id="dotY" min="0" max="100" value="85"></label>
+            <label class="chk"><input type="checkbox" id="showDim" checked> 顯示未亮的拍點</label>
+            <label>第1拍顏色 <input type="color" id="colAccent" value="#ffffff"></label>
+            <label>一般拍顏色 <input type="color" id="colNormal" value="#a8e84f"></label>
+            <label>未亮拍顏色 <input type="color" id="colDim" value="#5f7837"></label>
+          </div>
         </div>
       </div>
     </div>

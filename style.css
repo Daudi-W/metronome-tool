@@ -37,6 +37,11 @@ main{max-width:1040px;margin:0 auto;padding:16px}
 .tap-sm.flash{background:var(--lime);color:#11150a}
 .tap-sm.accent.flash{background:var(--accent);color:#1a0e04}
 .work-right .bpmbox{margin-top:8px}
+.bpm-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bpm-row .bpm-fine{margin-top:0;flex:1}
+/* 外觀橫跨整列:內部雙欄 */
+.style-cols{display:flex;gap:20px;flex-wrap:wrap}
+.style-col{flex:1 1 300px;min-width:260px}
 
 /* 大開關 */
 .toggles{display:flex;gap:10px;margin-bottom:14px}
