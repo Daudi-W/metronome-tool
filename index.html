@@ -23,11 +23,11 @@
     <input type="file" id="fileInput" accept="video/*,audio/*" hidden>
   </section>
 
-  <!-- 工作區:影片 + 拍子/外觀(全在影片旁,調整即時看到) -->
+  <!-- 工作區:左欄(影片+外觀) 並排 右欄(設定拍子) -->
   <section class="card hidden" id="stage">
     <div class="work">
-      <!-- 影片 -->
-      <div class="work-video">
+      <!-- 左欄:影片 + 外觀與聲音 -->
+      <div class="work-left">
         <div class="player">
           <video id="video" playsinline></video>
           <canvas id="overlay"></canvas>
@@ -36,50 +36,8 @@
           <button id="playBtn" class="big">▶︎ 播放</button>
           <span id="timeLabel" class="time">0:00 / 0:00</span>
         </div>
-      </div>
-      <!-- 右側控制:設定拍子 + 外觀與聲音 -->
-      <div class="work-ctrl">
         <div class="panel">
-          <h3>① 設定拍子</h3>
-          <div class="row">
-            <div class="tapcol">
-              <button id="autoBpmBtn" class="tap auto">🔍 自動偵測 BPM<br><small>分析整首,免敲</small></button>
-              <button id="tapTempoBtn" class="tap">🥢 或自己敲<br><small>跟著歌點 4 下以上</small></button>
-              <span id="detectStatus" class="time"></span>
-            </div>
-            <div class="bpmbox">
-              <label>BPM</label>
-              <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
-              <div class="bpm-fine">
-                <button data-bpm="-1">−1</button>
-                <button data-bpm="-0.1">−0.1</button>
-                <button data-bpm="+0.1">+0.1</button>
-                <button data-bpm="+1">+1</button>
-                <button id="halveBpm">÷2</button>
-                <button id="doubleBpm">×2</button>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <button id="markDownbeatBtn" class="tap accent">🎯 標記「第1拍」<br><small>播放中,在你數「1」的瞬間點一下</small></button>
-            <div class="fine">
-              <label>微調第1拍位置</label>
-              <div class="bpm-fine">
-                <button data-nudge="-0.05">−50ms</button>
-                <button data-nudge="-0.01">−10ms</button>
-                <button data-nudge="+0.01">+10ms</button>
-                <button data-nudge="+0.05">+50ms</button>
-              </div>
-              <label class="chk2" style="margin-top:8px"><input type="checkbox" id="snapBeat" checked> 標記時自動吸附到最近的拍</label>
-              <button id="snapNowBtn" class="bpm-fine" style="margin-top:6px">🧲 對齊到最近拍</button>
-              <span id="downbeatLabel" class="time">第1拍：未設定</span>
-            </div>
-          </div>
-          <div id="driftStatus" class="time" style="display:block;margin-top:4px"></div>
-        </div>
-
-        <div class="panel">
-          <h3>② 外觀與聲音</h3>
+          <h3>外觀與聲音</h3>
           <div class="toggles">
             <label class="toggle"><input type="checkbox" id="clickOn" checked><span>🥁 節拍器聲音</span></label>
             <label class="toggle"><input type="checkbox" id="accentSound" checked><span>🔊 第1拍重音</span></label>
@@ -98,6 +56,44 @@
             <label>一般拍顏色 <input type="color" id="colNormal" value="#a8e84f"></label>
             <label>未亮拍顏色 <input type="color" id="colDim" value="#5f7837"></label>
           </div>
+        </div>
+      </div>
+
+      <!-- 右欄:設定拍子(精簡) -->
+      <div class="work-right">
+        <div class="panel">
+          <h3>設定拍子</h3>
+          <div class="detect-row">
+            <button id="autoBpmBtn" class="tap-sm auto">🔍 自動偵測 BPM</button>
+            <button id="tapTempoBtn" class="tap-sm">🥢 自己敲</button>
+          </div>
+          <span id="detectStatus" class="time"></span>
+          <div class="bpmbox">
+            <label>BPM</label>
+            <input type="number" id="bpmInput" min="20" max="300" step="0.01" value="120">
+            <div class="bpm-fine">
+              <button data-bpm="-1">−1</button>
+              <button data-bpm="-0.1">−0.1</button>
+              <button data-bpm="+0.1">+0.1</button>
+              <button data-bpm="+1">+1</button>
+              <button id="halveBpm">÷2</button>
+              <button id="doubleBpm">×2</button>
+            </div>
+          </div>
+          <button id="markDownbeatBtn" class="tap-sm accent" style="width:100%">🎯 標記「第1拍」<br><small>播放中,在你數「1」的瞬間點一下</small></button>
+          <div class="fine">
+            <label>微調第1拍位置</label>
+            <div class="bpm-fine">
+              <button data-nudge="-0.05">−50ms</button>
+              <button data-nudge="-0.01">−10ms</button>
+              <button data-nudge="+0.01">+10ms</button>
+              <button data-nudge="+0.05">+50ms</button>
+            </div>
+            <label class="chk2" style="margin-top:8px"><input type="checkbox" id="snapBeat" checked> 標記時自動吸附到最近的拍</label>
+            <button id="snapNowBtn" class="bpm-fine" style="margin-top:6px">🧲 對齊到最近拍</button>
+            <span id="downbeatLabel" class="time">第1拍：未設定</span>
+          </div>
+          <div id="driftStatus" class="time" style="display:block;margin-top:6px"></div>
         </div>
       </div>
     </div>
