@@ -4,3 +4,5 @@ _test.mp4
 *.webm
 *.mp4
 .gitignore_test_marker
+*.mp3
+*.m4a

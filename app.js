@@ -162,7 +162,58 @@ $('tapTempoBtn').addEventListener('click', () => {
   }
 });
 
-// ---------- 音訊分析(解碼一次,給 BPM + 鼓點 onset) ----------
+// ---------- 調性偵測(chroma + Krumhansl-Schmuckler,移植自 audio-analyzer) ----------
+const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+const MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+const PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// 原地 radix-2 FFT
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { [re[i], re[j]] = [re[j], re[i]];[im[i], im[j]] = [im[j], im[i]]; } }
+  for (let len = 2; len <= n; len <<= 1) { const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) { const ur = re[i + k], ui = im[i + k], h = i + k + len / 2;
+        const vr = re[h] * cr - im[h] * ci, vi = re[h] * ci + im[h] * cr;
+        re[i + k] = ur + vr; im[i + k] = ui + vi; re[h] = ur - vr; im[h] = ui - vi;
+        const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr; } } }
+}
+function pearson(a, b) {
+  const n = a.length; let ma = 0, mb = 0; for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; } ma /= n; mb /= n;
+  let num = 0, da = 0, db = 0; for (let i = 0; i < n; i++) { const x = a[i] - ma, y = b[i] - mb; num += x * y; da += x * x; db += y * y; }
+  return num / (Math.sqrt(da * db) || 1);
+}
+function detectKey(channel, sr) {
+  const step = Math.max(1, Math.round(sr / 22050)), eSr = sr / step;   // 降到 ~22k 加速
+  const N = 8192, hop = 4096, chroma = new Float64Array(12);   // 大 FFT:低頻解析度足夠分清各音
+  const win = new Float64Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));
+  const re = new Float64Array(N), im = new Float64Array(N);
+  const len = Math.floor(channel.length / step), frame = new Float64Array(12);
+  for (let s = 0; s + N <= len; s += hop) {
+    for (let i = 0; i < N; i++) { re[i] = channel[(s + i) * step] * win[i]; im[i] = 0; }
+    fft(re, im);
+    frame.fill(0);
+    for (let k = 1; k < N / 2; k++) { const f = k * eSr / N; if (f < 65 || f > 2093) continue;
+      const mag = Math.hypot(re[k], im[k]) / f;   // 1/f 權重:各八度等權、壓低泛音(=五度)汙染
+      const pc = ((Math.round(12 * Math.log2(f / 440) + 69) % 12) + 12) % 12;
+      frame[pc] += mag; }
+    let fs = 0; for (const v of frame) fs += v; if (fs > 0) for (let i = 0; i < 12; i++) chroma[i] += frame[i] / fs;  // 每幀正規化
+  }
+  let sum = 0; for (const v of chroma) sum += v; if (sum > 0) for (let i = 0; i < 12; i++) chroma[i] /= sum;
+  const cands = [];
+  for (let t = 0; t < 12; t++) {
+    const maj = [], min = []; for (let i = 0; i < 12; i++) { const r = ((i - t) % 12 + 12) % 12; maj.push(MAJOR_PROFILE[r]); min.push(MINOR_PROFILE[r]); }
+    cands.push({ corr: pearson(maj, chroma), tonic: t, mode: 'major' });
+    cands.push({ corr: pearson(min, chroma), tonic: t, mode: 'minor' });
+  }
+  cands.sort((a, b) => b.corr - a.corr);
+  const top = cands[0];
+  // 相關係數接近(關係大小調常見)→ 選「主音在 chroma 能量最強」的
+  let best = top;
+  for (const c of cands) { if (c.corr < top.corr * 0.97) break; if (chroma[c.tonic] > chroma[best.tonic]) best = c; }
+  return { key: PITCH_NAMES[best.tonic], mode: best.mode === 'major' ? '大調' : '小調', conf: Math.max(0, Math.round(top.corr * 100)) };
+}
+
+// ---------- 音訊分析(解碼一次,給 BPM + 鼓點 onset + 調性) ----------
 let _analysis = null;
 async function analyzeAudio() {
   if (_analysis) return _analysis;
@@ -177,7 +228,8 @@ async function analyzeAudio() {
   const data = (await oac.startRendering()).getChannelData(0);
   const sr = audio.sampleRate;
   const { bpm, firstPeak } = analyzeTempo(data, sr);
-  _analysis = { bpm, firstPeak, onsets: detectOnsets(data, sr), sr };
+  const key = detectKey(audio.getChannelData(0), sr);
+  _analysis = { bpm, firstPeak, onsets: detectOnsets(data, sr), sr, key };
   return _analysis;
 }
 // 細緻鼓點 onset(5ms 包絡 + 不應期)
@@ -252,7 +304,8 @@ async function autoDetect() {
     setBpm(refineBpm(a.bpm));   // 精修到最鎖相的整數(錄音室通常整數)
     if (S.downbeat == null && a.firstPeak != null) { const s = snapToGrid(a.firstPeak); S.downbeat = s != null ? s : a.firstPeak; updateDownbeatLabel(); resetScheduler(); }
     showDrift();
-    status.textContent = `偵測:${S.bpm} BPM(已取整數;太快/慢按 ÷2、×2,非整數可手動微調);第1拍播放後點「標記」自動吸附`;
+    const k = a.key, low = k.conf < 70 ? ' ⚠️調性信心低,建議人耳/看譜確認' : '';
+    status.textContent = `偵測:${S.bpm} BPM · 調性 ${k.key} ${k.mode}(${k.conf}%)${low}　太快/慢按 ÷2、×2;第1拍播放後點「標記」自動吸附`;
   } catch (err) { status.textContent = '無法解碼此檔的音訊:' + err.message; }
 }
 // 峰值間隔直方圖估 BPM(折疊到 70–180)
